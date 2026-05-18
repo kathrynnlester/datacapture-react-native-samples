@@ -53,7 +53,10 @@ export const Find = ({ route, navigation }: Props) => {
 
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
-      navigateBack
+      () => {
+        navigation.goBack();
+        return true;
+      }
     );
 
     return () => backHandler.remove();
@@ -74,7 +77,7 @@ export const Find = ({ route, navigation }: Props) => {
     // The foundItems parameter contains the list of items found in the entire session.
     barcodeFindViewUiListenerRef.current = {
       didTapFinishButton: (_: BarcodeFindItem[]) => {
-        navigateBack();
+        navigateToHome();
       },
     };
 
@@ -92,13 +95,11 @@ export const Find = ({ route, navigation }: Props) => {
     return barcodeFind;
   }
 
-  const navigateBack = () => {
+  const navigateToHome = () => {
     setIsViewVisible(false);
-    // Workaround to give some time to the navigator to properly pop up the native view from the stack
     setTimeout(() => {
-      navigation.goBack();
+      navigation.navigate('Home');
     }, 500);
-    return true;
   };
 
   return (

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AppState, AppStateStatus, Text, TouchableWithoutFeedback, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import {
   BarcodeSelection,
   BarcodeSelectionAimerSelection,
@@ -16,9 +17,11 @@ import dataCaptureContext from './CaptureContext';
 const SelectionType = {
   tap: 'tap',
   aim: 'aim',
-}
+};
 
 export const ScanPage = () => {
+  const navigation = useNavigation();
+
   const [selectionType, setSelectionType] = useState(SelectionType.tap);
   const [result, setResult] = useState<string | null>(null);
 
@@ -72,7 +75,7 @@ export const ScanPage = () => {
   const handleAppStateChange = async (nextAppState: AppStateStatus) => {
     if (nextAppState.match(/inactive|background/)) {
       stopCapture();
-    } else {
+    } else if (nextAppState === 'active' && navigation.isFocused()) {
       startCapture();
     }
   };
@@ -105,21 +108,25 @@ export const ScanPage = () => {
     if (!camera) {
       throw new Error('Failed to initialize camera - camera not available on device');
     }
-    // Switch the camera on to start streaming frames and enable the barcode selection mode.
-    await camera.switchToDesiredState(FrameSourceState.On);
     // Set the camera as the frame source of the data capture context.
     await dataCaptureContext.setFrameSource(camera);
+    // Guard against the screen losing focus or going to background while the camera was being configured.
+    if (navigation.isFocused()) {
+      await camera.switchToDesiredState(FrameSourceState.On);
+    }
     return camera;
   }
 
-  // Add a barcode selection overlay to the data capture view to render the location of captured barcodes on top of
-  // the video preview. This is optional, but recommended for better visual feedback.
+  // Add a Barcode Selection overlay to the data capture view to render the location of
+  // captured barcodes on top of the video preview.
+  // This is optional, but recommended for better visual feedback.
   function setupOverlay(): BarcodeSelectionBasicOverlay {
     if (!barcodeSelectionMode.current) {
       throw new Error('Cannot setup overlay - BarcodeSelection not initialized');
     }
-    // Add a barcode selection overlay to the data capture view to render the location of captured barcodes on top of
-    // the video preview. This is optional, but recommended for better visual feedback.
+    // Add a Barcode Selection overlay to the data capture view to render the location of
+    // captured barcodes on top of the video preview.
+    // This is optional, but recommended for better visual feedback.
     const overlay = new BarcodeSelectionBasicOverlay(barcodeSelectionMode.current);
     return overlay;
   }
@@ -150,7 +157,9 @@ export const ScanPage = () => {
       didUpdateSelection: async (_, session, __) => {
         const barcode = session.newlySelectedBarcodes[0];
 
-        if (!barcode) { return }
+        if (!barcode) {
+          return;
+        }
 
         const symbology = new SymbologyDescription(barcode.symbology);
 
@@ -161,7 +170,7 @@ export const ScanPage = () => {
             setResult(null);
           }, 500);
         });
-      }
+      },
     });
 
     // Set the barcode selection mode to the data capture context.
@@ -175,7 +184,7 @@ export const ScanPage = () => {
       <DataCaptureView
         style={{ flex: 1 }}
         context={dataCaptureContext}
-        ref={(view) => {
+        ref={view => {
           if (view && !viewRef.current) {
             view.addOverlay(overlayRef.current);
             viewRef.current = view;
@@ -183,19 +192,39 @@ export const ScanPage = () => {
         }}
       />
 
-      <View style={{ width: '100%', backgroundColor: "black", flexDirection: "row", justifyContent: "space-around", alignItems: 'center' }}>
+      <View
+        style={{
+          width: '100%',
+          backgroundColor: 'black',
+          flexDirection: 'row',
+          justifyContent: 'space-around',
+          alignItems: 'center',
+        }}>
         <TouchableWithoutFeedback onPress={() => setSelectionType(SelectionType.tap)}>
-          <Text style={{ padding: 15, color: selectionType == SelectionType.tap ? 'white' : 'grey' }}>Tap to Select</Text>
+          <Text style={{ padding: 15, color: selectionType == SelectionType.tap ? 'white' : 'grey' }}>
+            Tap to Select
+          </Text>
         </TouchableWithoutFeedback>
         <TouchableWithoutFeedback onPress={() => setSelectionType(SelectionType.aim)}>
-          <Text style={{ padding: 15, color: selectionType == SelectionType.aim ? 'white' : 'grey' }}>Aim to Select</Text>
+          <Text style={{ padding: 15, color: selectionType == SelectionType.aim ? 'white' : 'grey' }}>
+            Aim to Select
+          </Text>
         </TouchableWithoutFeedback>
       </View>
 
-      {result &&
-        <Text style={{
-          position: 'absolute', top: 100, width: '100%', textAlign: 'center', backgroundColor: '#FFFC', padding: 20,
-        }}>{result}</Text>}
+      {result && (
+        <Text
+          style={{
+            position: 'absolute',
+            top: 100,
+            width: '100%',
+            textAlign: 'center',
+            backgroundColor: '#FFFC',
+            padding: 20,
+          }}>
+          {result}
+        </Text>
+      )}
     </>
   );
-}
+};

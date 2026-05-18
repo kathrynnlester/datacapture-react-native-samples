@@ -16,10 +16,3 @@ if (useRemoteCache) {
     }
 }
 
-if (System.getenv().containsKey('CI_SERVER')) {
-    buildCache {
-        local {
-            removeUnusedEntriesAfterDays = 14
-        }
-    }
-}

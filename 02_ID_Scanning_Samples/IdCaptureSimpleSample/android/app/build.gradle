@@ -1,6 +1,10 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+repositories {
+    maven { url "https://packages.rnrepo.org/releases" }
+}
+apply plugin: "org.rnrepo.tools.prebuilds-plugin"
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -16,7 +20,7 @@ react {
  */
 def enableProguardInReleaseBuilds = true
 
-def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
+def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.0.0'
 
 android {
     compileSdk rootProject.ext.compileSdkVersion

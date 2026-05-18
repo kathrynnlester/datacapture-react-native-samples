@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Alert, AppState, AppStateStatus } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { Camera, DataCaptureView, FrameSourceState } from 'scandit-react-native-datacapture-core';
 import {
   IdCapture,
@@ -19,6 +20,8 @@ import {
 import dataCaptureContext from './CaptureContext';
 
 export const ScanPage = () => {
+  const navigation = useNavigation();
+
   const viewRef = React.createRef();
   const camera = useRef<Camera | null>(null);
 
@@ -52,7 +55,7 @@ export const ScanPage = () => {
   const handleAppStateChange = async (nextAppState: AppStateStatus) => {
     if (nextAppState.match(/inactive|background/)) {
       stopCapture();
-    } else {
+    } else if (nextAppState === 'active' && navigation.isFocused()) {
       startCapture();
     }
   };
@@ -89,10 +92,12 @@ export const ScanPage = () => {
       throw new Error('Failed to initialize camera - camera not available on device');
     }
 
-    // Switch the camera on to start streaming frames and enable the id capture mode.
-    await camera.switchToDesiredState(FrameSourceState.On);
     // Set the camera as the frame source of the data capture context.
     await dataCaptureContext.setFrameSource(camera);
+    // Guard against the screen losing focus or going to background while the camera was being configured.
+    if (navigation.isFocused()) {
+      await camera.switchToDesiredState(FrameSourceState.On);
+    }
 
     return camera;
   }
@@ -102,7 +107,7 @@ export const ScanPage = () => {
       throw new Error('Failed to initialize overlay');
     }
 
-    // Add a Id capture overlay to the data capture view to render the location of captured ids on top of
+    // Add an ID Capture overlay to the data capture view to render the location of captured IDs on top of
     // the video preview. This is optional, but recommended for better visual feedback.
     const overlay = new IdCaptureOverlay(idCapture.current);
 

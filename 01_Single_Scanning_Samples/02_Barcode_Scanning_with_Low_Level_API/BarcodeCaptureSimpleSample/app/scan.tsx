@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Alert, AppState } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import {
   BarcodeCapture,
   BarcodeCaptureOverlay,
@@ -22,6 +23,8 @@ import dataCaptureContext from '../utils/dataCaptureContext';
 import { Stack } from 'expo-router';
 
 export default function ScanPage() {
+  const navigation = useNavigation();
+
   const viewRef = useRef<DataCaptureView>(null);
   const cameraRef = useRef<Camera>(null!);
   const barcodeCaptureModeRef = useRef<BarcodeCapture>(null!);
@@ -66,7 +69,7 @@ export default function ScanPage() {
     const handleAppStateChangeSubscription = AppState.addEventListener('change', () => {
       if (AppState.currentState.match(/inactive|background/)) {
         stopCapture();
-      } else {
+      } else if (navigation.isFocused()) {
         startCapture();
       }
     });
@@ -93,8 +96,10 @@ export default function ScanPage() {
     // Set the camera as the frame source of the data capture context.
     await dataCaptureContext.setFrameSource(camera);
 
-    // Switch the camera on to start streaming frames and enable the barcode capture mode.
-    await camera.switchToDesiredState(FrameSourceState.On);
+    // Guard against the screen losing focus or going to background while the camera was being configured.
+    if (navigation.isFocused()) {
+      await camera.switchToDesiredState(FrameSourceState.On);
+    }
   }
 
   function setupScanning() {
@@ -192,8 +197,10 @@ export default function ScanPage() {
     if (!barcodeCaptureModeRef.current) {
       throw new Error('Cannot setup overlay - BarcodeCapture');
     }
-    // Add a barcode capture overlay to the data capture view to render the location of captured barcodes on top of
-    // the video preview, using the Frame overlay style. This is optional, but recommended for better visual feedback.
+    // Add a Barcode Capture overlay to the data capture view to render the location of captured
+    // barcodes on top of the video preview. Viewfinders are visual components only, and as such
+    // will not restrict the scan area.
+    // This is optional, but recommended for better visual feedback.
     const overlay = new BarcodeCaptureOverlay(barcodeCaptureModeRef.current);
 
     overlay.viewfinder = new RectangularViewfinder(

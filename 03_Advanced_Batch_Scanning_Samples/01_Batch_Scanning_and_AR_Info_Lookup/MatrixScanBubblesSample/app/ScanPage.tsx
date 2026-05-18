@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AppState, AppStateStatus, Dimensions } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   BarcodeBatch,
@@ -29,6 +30,8 @@ import Unfreeze from './Unfreeze.svg';
 import dataCaptureContext from './CaptureContext';
 
 export const ScanPage = () => {
+  const navigation = useNavigation();
+
   const viewRef = useRef<DataCaptureView>(null);
   const cameraRef = useRef<Camera | null>(null);
 
@@ -86,10 +89,12 @@ export const ScanPage = () => {
     if (!newCamera) {
       throw new Error('No camera available');
     }
-    // Switch the camera on to start streaming frames and enable the barcode batch mode.
-    await newCamera.switchToDesiredState(FrameSourceState.On);
     // Set the camera as the frame source of the data capture context.
     await dataCaptureContext.setFrameSource(newCamera);
+    // Guard against the screen losing focus or going to background while the camera was being configured.
+    if (navigation.isFocused()) {
+      await newCamera.switchToDesiredState(FrameSourceState.On);
+    }
     return newCamera;
   }
 
@@ -106,7 +111,7 @@ export const ScanPage = () => {
       // If the app is going to the background or inactive state, we stop the capture.
       if (nextAppState.match(/inactive|background/)) {
         stopCapture();
-      } else if (nextAppState === 'active') {
+      } else if (nextAppState === 'active' && navigation.isFocused()) {
         if (isScanningRef.current) {
           startCapture();
         }
@@ -170,7 +175,7 @@ export const ScanPage = () => {
   const getQuadrilateralWidth = (quadrilateral: Quadrilateral): number => {
     return Math.max(
       Math.abs(quadrilateral.topRight.x - quadrilateral.topLeft.x),
-      Math.abs(quadrilateral.bottomRight.x - quadrilateral.bottomLeft.x),
+      Math.abs(quadrilateral.bottomRight.x - quadrilateral.bottomLeft.x)
     );
   };
 

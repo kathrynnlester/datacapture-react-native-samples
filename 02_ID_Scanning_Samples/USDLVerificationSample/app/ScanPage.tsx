@@ -1,10 +1,6 @@
 import React, { useRef, useEffect } from 'react';
-import {
-  Alert,
-  AppState,
-  AppStateStatus,
-  View,
-} from 'react-native';
+import { Alert, AppState, AppStateStatus, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import {
   Camera,
   CameraSettings,
@@ -32,6 +28,8 @@ import { styles } from './styles';
 import dataCaptureContext from './CaptureContext';
 
 export const ScanPage = () => {
+  const navigation = useNavigation();
+
   const viewRef = useRef<DataCaptureView | null>(null);
   const camera = useRef<Camera | null>(null);
 
@@ -54,10 +52,7 @@ export const ScanPage = () => {
 
     initCamera();
 
-    const handleAppStateChangeSubscription = AppState.addEventListener(
-      'change',
-      handleAppStateChange
-    );
+    const handleAppStateChangeSubscription = AppState.addEventListener('change', handleAppStateChange);
 
     return () => {
       handleAppStateChangeSubscription.remove();
@@ -68,10 +63,10 @@ export const ScanPage = () => {
   const handleAppStateChange = async (nextAppState: AppStateStatus) => {
     if (nextAppState.match(/inactive|background/)) {
       stopCapture();
-    } else {
+    } else if (nextAppState === 'active' && navigation.isFocused()) {
       startCapture();
     }
-  }
+  };
 
   const startCapture = () => {
     startCamera();
@@ -92,24 +87,26 @@ export const ScanPage = () => {
   };
 
   async function setupCamera(): Promise<Camera> {
-      // Use the world-facing (back) camera and set it as the frame source of the context. The camera is off by
-      // default and must be turned on to start streaming frames to the data capture context for recognition.
-      const cameraSettings = new CameraSettings();
-      cameraSettings.preferredResolution = VideoResolution.UHD4K;
+    // Use the world-facing (back) camera and set it as the frame source of the context. The camera is off by
+    // default and must be turned on to start streaming frames to the data capture context for recognition.
+    const cameraSettings = new CameraSettings();
+    cameraSettings.preferredResolution = VideoResolution.UHD4K;
 
-      const camera = Camera.withSettings(cameraSettings);
+    const camera = Camera.withSettings(cameraSettings);
 
-      // Camera is null if the camera is not available on the device.
-      if (!camera) {
-        throw new Error('Failed to initialize camera - camera not available on device');
-      }
+    // Camera is null if the camera is not available on the device.
+    if (!camera) {
+      throw new Error('Failed to initialize camera - camera not available on device');
+    }
 
-      // Switch the camera on to start streaming frames and enable the id capture mode.
+    // Set the camera as the frame source of the data capture context.
+    await dataCaptureContext.setFrameSource(camera);
+    // Guard against the screen losing focus or going to background while the camera was being configured.
+    if (navigation.isFocused()) {
       await camera.switchToDesiredState(FrameSourceState.On);
-      // Set the camera as the frame source of the data capture context.
-      await dataCaptureContext.setFrameSource(camera);
+    }
 
-      return camera;
+    return camera;
   }
 
   function setupOverlay(): IdCaptureOverlay {
@@ -161,7 +158,7 @@ export const ScanPage = () => {
               },
             },
           ],
-          { cancelable: false },
+          { cancelable: false }
         );
       },
       didRejectId: (mode: IdCapture, rejectedId: CapturedId | null, reason: RejectionReason) => {
@@ -178,7 +175,7 @@ export const ScanPage = () => {
               },
             },
           ],
-          { cancelable: false },
+          { cancelable: false }
         );
       },
     };
@@ -189,7 +186,7 @@ export const ScanPage = () => {
     dataCaptureContext.setMode(idCapture);
 
     return idCapture;
-  };
+  }
 
   const getDateAsString = (dateObject: DateResult | null) => {
     return `${
@@ -248,7 +245,7 @@ export const ScanPage = () => {
         <DataCaptureView
           style={styles.cameraView}
           context={dataCaptureContext}
-          ref={(view) => {
+          ref={view => {
             if (view && !viewRef.current) {
               view.addOverlay(overlay.current);
               viewRef.current = view;

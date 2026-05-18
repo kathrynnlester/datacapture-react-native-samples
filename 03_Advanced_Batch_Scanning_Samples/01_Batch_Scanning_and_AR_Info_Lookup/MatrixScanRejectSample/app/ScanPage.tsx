@@ -26,7 +26,6 @@ import type { NavigationProp } from '@react-navigation/native';
 import { RootStackParamList } from './types';
 
 export const ScanPage = () => {
-
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [results, setResults] = useState<Record<string, { data: string; symbology: Symbology }>>({});
   const viewRef = useRef<DataCaptureView>(null);
@@ -49,7 +48,7 @@ export const ScanPage = () => {
 
   const isRejected = (value: string) => {
     return value.startsWith('7') || value.startsWith('07');
-  }
+  };
 
   useEffect(() => {
     const initCamera = async () => {
@@ -63,7 +62,7 @@ export const ScanPage = () => {
     const handleAppStateChangeSubscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       if (nextAppState.match(/inactive|background/)) {
         stopCapture();
-      } else {
+      } else if (nextAppState === 'active' && navigation.isFocused()) {
         startCapture();
       }
     });
@@ -72,22 +71,22 @@ export const ScanPage = () => {
       handleAppStateChangeSubscription.remove();
       stopCapture();
       void dataCaptureContext.removeMode(barcodeBatchRef.current);
-    }
+    };
   }, []);
 
   const startCapture = () => {
     startCamera();
     barcodeBatchRef.current.isEnabled = true;
-  }
+  };
 
   const stopCapture = () => {
     barcodeBatchRef.current.isEnabled = false;
     stopCamera();
-  }
+  };
 
   const goToResults = () => {
     navigation.navigate('results', { results: results });
-  }
+  };
 
   const stopCamera = () => {
     if (cameraRef.current) {
@@ -113,10 +112,12 @@ export const ScanPage = () => {
       throw new Error('No camera available');
     }
 
-    // Switch the camera on to start streaming frames and enable the barcode batch mode.
-    await camera.switchToDesiredState(FrameSourceState.On);
     // Set the camera as the frame source of the data capture context.
     await dataCaptureContext.setFrameSource(camera);
+    // Guard against the screen losing focus or going to background while the camera was being configured.
+    if (navigation.isFocused()) {
+      await camera.switchToDesiredState(FrameSourceState.On);
+    }
     return camera;
   }
 
@@ -124,12 +125,10 @@ export const ScanPage = () => {
     if (!barcodeBatchRef.current) {
       throw new Error('Failed to initialize overlay');
     }
-    // Add a barcode batch overlay to the data capture view to render the location of captured barcodes on top of
-    // the video preview. This is optional, but recommended for better visual feedback.
-    const overlay = new BarcodeBatchBasicOverlay(
-      barcodeBatchRef.current,
-      BarcodeBatchBasicOverlayStyle.Frame
-    );
+    // Add a Barcode Batch overlay to the data capture view to render the tracked barcodes on
+    // top of the video preview.
+    // This is optional, but recommended for better visual feedback.
+    const overlay = new BarcodeBatchBasicOverlay(barcodeBatchRef.current, BarcodeBatchBasicOverlayStyle.Frame);
 
     // Implement the BarcodeBatchBasicOverlayListener interface.
     // The method BarcodeBatchBasicOverlayListener.brushForTrackedBarcode() is invoked every time a new tracked
@@ -142,7 +141,7 @@ export const ScanPage = () => {
         if (barcode.data && isRejected(barcode.data)) {
           return new Brush(Color.fromRGBA(255, 255, 255, 0), Color.fromHex('#FF3939FF'), 3);
         } else {
-          return new Brush(Color.fromRGBA(0, 255, 255, .45), Color.fromHex('#00FFFF'), 3);
+          return new Brush(Color.fromRGBA(0, 255, 255, 0.45), Color.fromHex('#00FFFF'), 3);
         }
       },
     };
@@ -188,12 +187,11 @@ export const ScanPage = () => {
           if (data && !isRejected(data)) {
             setResults(prevResults => ({
               ...prevResults,
-              [data]: { data, symbology }
+              [data]: { data, symbology },
             }));
           }
         });
-
-      }
+      },
     };
 
     void barcodeBatchRef.current.addListener(barcodeBatchListener);
@@ -202,21 +200,25 @@ export const ScanPage = () => {
 
   return (
     <>
-      <DataCaptureView style={{ flex: 1 }} context={dataCaptureContext} ref={(view) => {
-        if (view && !viewRef.current) {
-          view.addOverlay(overlayRef.current);
-          viewRef.current = view;
-        }
-      }} />
-        <View style={styles.buttonContainer}>
-          <Button
-            styles={styles.button}
-            textStyles={styles.buttonText}
-            title='Done'
-            onPress={goToResults}
-            disabled={false}
-          />
+      <DataCaptureView
+        style={{ flex: 1 }}
+        context={dataCaptureContext}
+        ref={view => {
+          if (view && !viewRef.current) {
+            view.addOverlay(overlayRef.current);
+            viewRef.current = view;
+          }
+        }}
+      />
+      <View style={styles.buttonContainer}>
+        <Button
+          styles={styles.button}
+          textStyles={styles.buttonText}
+          title="Done"
+          onPress={goToResults}
+          disabled={false}
+        />
       </View>
     </>
-  )
-}
+  );
+};

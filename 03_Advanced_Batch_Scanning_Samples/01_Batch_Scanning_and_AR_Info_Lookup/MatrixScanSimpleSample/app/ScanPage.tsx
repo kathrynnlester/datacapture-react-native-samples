@@ -9,12 +9,7 @@ import {
   BarcodeBatchSettings,
   Symbology,
 } from 'scandit-react-native-datacapture-barcode';
-import {
-  Camera,
-  DataCaptureView,
-  FrameSourceState,
-  VideoResolution,
-} from 'scandit-react-native-datacapture-core';
+import { Camera, DataCaptureView, FrameSourceState, VideoResolution } from 'scandit-react-native-datacapture-core';
 
 import { Button } from './Button';
 import { styles } from './styles';
@@ -52,10 +47,10 @@ export const ScanPage = () => {
 
     initCamera();
 
-    const handleAppStateChangeSubscription = AppState.addEventListener('change', (nextAppState) => {
+    const handleAppStateChangeSubscription = AppState.addEventListener('change', nextAppState => {
       if (nextAppState.match(/inactive|background/)) {
         stopCapture();
-      } else {
+      } else if (nextAppState === 'active' && navigation.isFocused()) {
         startCapture();
       }
     });
@@ -69,16 +64,16 @@ export const ScanPage = () => {
   const startCapture = () => {
     startCamera();
     barcodeBatchRef.current.isEnabled = true;
-  }
+  };
 
   const stopCapture = () => {
     barcodeBatchRef.current.isEnabled = false;
     stopCamera();
-  }
+  };
 
   const goToResults = () => {
     navigation.navigate('results', { results: results, onClearResults: clearResults });
-  }
+  };
 
   const stopCamera = () => {
     if (cameraRef.current) {
@@ -95,7 +90,7 @@ export const ScanPage = () => {
   async function setupCamera(): Promise<Camera> {
     // Use the world-facing (back) camera and set it as the frame source of the context. The camera is off by
     // default and must be turned on to start streaming frames to the data capture context for recognition.
-    const cameraSettings = BarcodeBatch.createRecommendedCameraSettings()
+    const cameraSettings = BarcodeBatch.createRecommendedCameraSettings();
     cameraSettings.preferredResolution = VideoResolution.FullHD;
 
     const camera = Camera.withSettings(cameraSettings);
@@ -104,10 +99,12 @@ export const ScanPage = () => {
       throw new Error('No camera available');
     }
 
-    // Switch the camera on to start streaming frames and enable the barcode batch mode.
-    await camera.switchToDesiredState(FrameSourceState.On);
     // Set the camera as the frame source of the data capture context.
     await dataCaptureContext.setFrameSource(camera);
+    // Guard against the screen losing focus or going to background while the camera was being configured.
+    if (navigation.isFocused()) {
+      await camera.switchToDesiredState(FrameSourceState.On);
+    }
 
     return camera;
   }
@@ -117,8 +114,9 @@ export const ScanPage = () => {
       throw new Error('Barcode batch not initialized');
     }
 
-    // Add a barcode batch overlay to the data capture view to render the location of captured barcodes on top of
-    // the video preview. This is optional, but recommended for better visual feedback.
+    // Add a Barcode Batch overlay to the data capture view to render the tracked barcodes on
+    // top of the video preview.
+    // This is optional, but recommended for better visual feedback.
     return new BarcodeBatchBasicOverlay(barcodeBatchRef.current, BarcodeBatchBasicOverlayStyle.Frame);
   }
   function setupScanning(): BarcodeBatch {
@@ -149,7 +147,7 @@ export const ScanPage = () => {
             setResults(prevResults => ({ ...prevResults, [data]: { data, symbology } }));
           }
         });
-      }
+      },
     };
 
     barcodeBatch.addListener(barcodeBatchListener);
@@ -162,21 +160,25 @@ export const ScanPage = () => {
 
   return (
     <>
-      <DataCaptureView style={{ flex: 1 }} context={dataCaptureContext} ref={(view) => {
-        if (view && !viewRef.current) {
-          view.addOverlay(overlay.current)
-          viewRef.current = view;
-        }
-      }} />
+      <DataCaptureView
+        style={{ flex: 1 }}
+        context={dataCaptureContext}
+        ref={view => {
+          if (view && !viewRef.current) {
+            view.addOverlay(overlay.current);
+            viewRef.current = view;
+          }
+        }}
+      />
       <View style={styles.buttonContainer}>
         <Button
           styles={styles.button}
           textStyles={styles.buttonText}
-          title='Done'
+          title="Done"
           onPress={() => goToResults()}
           disabled={false}
         />
       </View>
     </>
   );
-}
+};
