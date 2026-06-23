@@ -12,8 +12,8 @@
     },
     "dependencies": {
         "@react-navigation/native": "^7.1.8",
-        "expo": "~55.0.2",
-        "expo-router": "~55.0.2",
+        "expo": "55.0.24",
+        "expo-router": "55.0.14",
         "expo-splash-screen": "~55.0.9",
         "react": "19.2.3",
         "react-native": "0.83.2",
@@ -21,9 +21,8 @@
         "react-native-safe-area-context": "^5.7.0",
         "react-native-screens": "~4.16.0",
         "react-native-svg": "^15.15.3",
-        "scandit-react-native-datacapture-barcode": "8.4.0",
-        "scandit-react-native-datacapture-core": "8.4.0",
-        "@rnrepo/expo-config-plugin": "latest"
+        "scandit-react-native-datacapture-barcode": "8.4.1",
+        "scandit-react-native-datacapture-core": "8.4.1"
     },
     "devDependencies": {
         "@types/react": "~19.1.0",
